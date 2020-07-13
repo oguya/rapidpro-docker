@@ -7,6 +7,7 @@ version: '2'
 services:
   nginx:
     image: nginx:latest
+    restart: unless-stopped
     depends_on:
       - rapidpro
       - courier
@@ -16,12 +17,18 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     ports:
-      - 80:80
+      - 127.0.0.1:9029:80
 
   rapidpro:
     image: oguya/rapidpro-docker:v5.5.0
+    restart: unless-stopped
     volumes:
       - ./settings.py:/rapidpro/temba/settings.py
+      - ./stack/startup.sh:/startup.sh
+    links:
+      - redis
+      - postgresql
+      - mailroom
     depends_on:
       - redis
       - postgresql
@@ -30,24 +37,28 @@ services:
       - elasticsearch
     expose:
       - '8000'
+    env_file:
+      - ./extra-app-env-vars.env
     environment:
-      - DOMAIN_NAME=localhost
-      - ALLOWED_HOSTS=localhost
-      - TEMBA_HOST=localhost
-      - DJANGO_DEBUG=off
+      - DOMAIN_NAME=workflows.badili.co.ke
+      - ALLOWED_HOSTS=workflows.badili.co.ke
+      - TEMBA_HOST=workflows.badili.co.ke
+      - DJANGO_DEBUG=on
       - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=super-secret-key
+      - SECRET_KEY=rY6EEymtGXHWG8RDBptW7pmKM
       - MANAGEPY_COLLECTSTATIC=on
       - MANAGEPY_COMPRESS=on
       - MANAGEPY_INIT_DB=on
       - MANAGEPY_MIGRATE=on
       - MAILROOM_URL=http://mailroom:8090
-      - MAILROOM_AUTH_TOKEN=Gqcqvi2PGkoZMpQi
+      - MAILROOM_AUTH_TOKEN=sc6VbyanJW0YJ4iW
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - UWSGI_WORKERS=2
 
   celery:
     image: oguya/rapidpro-docker:v5.5.0
+    restart: unless-stopped
     depends_on:
       - rapidpro
       - mailroom
@@ -57,27 +68,34 @@ services:
       - postgresql
       - mailroom
       - elasticsearch
+    env_file:
+      - ./extra-app-env-vars.env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgresql/rapidpro
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=super-secret-key
+      - SECRET_KEY=rY6EEymtGXHWG8RDBptW7pmKM
       - MAILROOM_URL=http://mailroom:8090
-      - MAILROOM_AUTH_TOKEN=Gqcqvi2PGkoZMpQi
+      - MAILROOM_AUTH_TOKEN=sc6VbyanJW0YJ4iW
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     command: ["/venv/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery"]
 
   redis:
     image: redis:alpine
+    restart: unless-stopped
 
   postgresql:
     image: mdillon/postgis:9.6
+    restart: unless-stopped
     environment:
       - POSTGRES_DB=rapidpro
     volumes:
-    - .postgres_data/:/var/lib/postgres/
+      - .postgres_data/:/var/lib/postgresql:rw
 
   courier:
     image: praekeltfoundation/courier:latest
+    env_file:
+      - ./extra-app-env-vars.env
+    restart: unless-stopped
     depends_on:
       - postgresql
       - redis
@@ -94,6 +112,7 @@ services:
 
   indexer:
     image: praekeltfoundation/rp-indexer:latest
+    restart: unless-stopped
     depends_on:
       - postgresql
       - elasticsearch
@@ -106,6 +125,7 @@ services:
 
   elasticsearch:
     image: elasticsearch:6.4.0
+    restart: unless-stopped
     environment:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
@@ -114,7 +134,11 @@ services:
       - 'es_data:/usr/share/elasticsearch/data'
 
   mailroom:
-    image: praekeltfoundation/mailroom:2.0.9
+    #image: praekeltfoundation/mailroom:2.0.9
+    image: oguya/mailroom:v5.5.1
+    restart: unless-stopped
+    env_file:
+      - ./extra-app-env-vars.env
     depends_on:
       - postgresql
       - redis
@@ -123,8 +147,8 @@ services:
       - redis
     environment:
       - MAILROOM_DOMAIN=mailroom
-      - MAILROOM_AUTH_TOKEN=Gqcqvi2PGkoZMpQi
-      - MAILROOM_ATTACHMENT_DOMAIN=mailroom
+      - MAILROOM_AUTH_TOKEN=sc6VbyanJW0YJ4iW
+      - MAILROOM_ATTACHMENT_DOMAIN=workflows.badili.co.ke
       - MAILROOM_DB=postgres://postgres:postgres@postgresql/rapidpro?sslmode=disable
       - MAILROOM_REDIS=redis://redis:6379/0
       - MAILROOM_LOG_LEVEL=debug
@@ -132,3 +156,4 @@ services:
 
 volumes:
   es_data:
+

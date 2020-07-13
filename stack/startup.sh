@@ -18,7 +18,7 @@ if [ "x$MANAGEPY_INIT_DB" = "xon" ]; then
 	rm $HOME/.pgpass
 fi
 if [ "x$MANAGEPY_MIGRATE" = "xon" ]; then
-	/venv/bin/python manage.py migrate
+	/venv/bin/python manage.py migrate --run-syncdb
 fi
 if [ "x$MANAGEPY_IMPORT_GEOJSON" = "xon" ]; then
 	echo "Downloading geojson for relation_ids $OSM_RELATION_IDS"

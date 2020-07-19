@@ -92,7 +92,7 @@ services:
       - .postgres_data/:/var/lib/postgresql:rw
 
   courier:
-    image: praekeltfoundation/courier:latest
+    image: oguya/courier:v5.6.0
     env_file:
       - ./extra-app-env-vars.env
     restart: unless-stopped
@@ -105,9 +105,10 @@ services:
       - redis
       - postgresql
     environment:
-      - COURIER_DB=postgres://postgres:postgres@postgresql/rapidpro
+      - COURIER_DB=postgres://postgres:postgres@postgresql/rapidpro?sslmode=disable
       - COURIER_REDIS=redis://redis:6379/0
       - COURIER_DOMAIN=localhost
+      - COURIER_LOG_LEVEL=debug
       - COURIER_SPOOL_DIR=/home/courier/spool/persisted/
 
   indexer:
@@ -134,7 +135,6 @@ services:
       - 'es_data:/usr/share/elasticsearch/data'
 
   mailroom:
-    #image: praekeltfoundation/mailroom:2.0.9
     image: oguya/mailroom:v5.5.1
     restart: unless-stopped
     env_file:
